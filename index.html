@@ -267,7 +267,7 @@
 ポストに車検証が入らない場合には不在表が投函されますので、再配達のご連絡をお願いします。							
                     </p>
                 </div>
-                <p id="shaken-validation-notice" class="text-sm text-red-600 mt-2 font-semibold">お客様情報を全て入力し、約款を最後までスクロールすると署名が可能になります。</p>
+                <p id="shaken-validation-notice" class="text-sm text-red-600 mt-2 font-semibold">お客様情報を全て入力すると署名が可能になります。</p>
             </div>
 
             <!-- 共通の署名と保存ボタン -->
@@ -347,7 +347,9 @@
                 formElement.addEventListener('change', updateSaveButtonState);
             } else if (formId === 'form-shaken') {
                 formElement.addEventListener('input', updateSaveButtonState);
-                document.getElementById('shaken-yakkan').addEventListener('scroll', updateSaveButtonState);
+                // --- vvv REMOVED vvv ---
+                // document.getElementById('shaken-yakkan').addEventListener('scroll', updateSaveButtonState);
+                // --- ^^^ REMOVED ^^^ ---
                 setupZipCodeListener();
             }
             updateSaveButtonState();
@@ -404,25 +406,19 @@
                 const tel = document.getElementById('shaken-tel').value.trim() !== '';
                 const zip = document.getElementById('shaken-zip').value.trim() !== '';
                 const address = document.getElementById('shaken-address').value.trim() !== '';
-                const yakkanElement = document.getElementById('shaken-yakkan');
-                // -- vvv FIX vvv --
-                const isScrolledToEnd = (yakkanElement.scrollTop + yakkanElement.clientHeight) >= (yakkanElement.scrollHeight - 10);
-                // -- ^^^ FIX ^^^ --
-
-                isReady = ownerName && tel && zip && address && isScrolledToEnd;
+                
+                // --- vvv FIX vvv ---
+                isReady = ownerName && tel && zip && address;
+                // --- ^^^ FIX ^^^ ---
 
                 if (notice) {
                     if (isReady) {
                         notice.style.display = 'none';
                     } else {
                         notice.style.display = 'block';
-                        if (!ownerName || !tel || !zip || !address) {
-                            notice.textContent = '必須のお客様情報(*)を全て入力してください。';
-                        } else if (!isScrolledToEnd) {
-                            notice.textContent = '約款を最後までスクロールしてください。';
-                        } else {
-                            notice.textContent = 'お客様情報を全て入力し、約款を最後までスクロールすると署名が可能になります。';
-                        }
+                        // --- vvv FIX vvv ---
+                        notice.textContent = '必須のお客様情報(*)を全て入力してください。';
+                        // --- ^^^ FIX ^^^ ---
                     }
                 }
             }
@@ -475,7 +471,6 @@
             }
         }
 
-        // --- vvv FIX vvv ---
         // データ送信（fetchを使用した安定版）
         async function saveSignature() {
             if (GAS_WEB_APP_URL.includes('...')) {
@@ -545,7 +540,6 @@
                 alert(`保存中に通信エラーが発生しました。\n\n詳細: ${error.message}\n\nネットワーク接続を確認するか、GASのURL設定やデプロイ設定を見直してください。`);
             }
         }
-        // --- ^^^ FIX ^^^ ---
 
         const commonInputs = [
             document.getElementById('common-tenpo'),
