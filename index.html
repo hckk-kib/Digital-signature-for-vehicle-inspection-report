@@ -394,28 +394,48 @@
 
         function updateSaveButtonState() {
             const saveButton = document.getElementById('save-button');
-            if (!saveButton) return;
+            if (!saveButton) return; // エラー回避: 署名セクションがまだ存在しない場合
 
             let isReady = false;
             if (currentForm === 'form-houchi') {
                 isReady = isHouchiFormValid();
             } else if (currentForm === 'form-shaken') {
                 const notice = document.getElementById('shaken-validation-notice');
-                const ownerName = document.getElementById('shaken-owner-name').value.trim() !== '';
-                const tel = document.getElementById('shaken-tel').value.trim() !== '';
-                const zip = document.getElementById('shaken-zip').value.trim() !== '';
-                const address = document.getElementById('shaken-address').value.trim() !== '';
+                // -- vvv FIX vvv --
+                // 各要素の存在チェックを追加
+                const ownerNameEl = document.getElementById('shaken-owner-name');
+                const telEl = document.getElementById('shaken-tel');
+                const zipEl = document.getElementById('shaken-zip');
+                const addressEl = document.getElementById('shaken-address');
+
+                const ownerNameFilled = ownerNameEl && ownerNameEl.value.trim() !== '';
+                const telFilled = telEl && telEl.value.trim() !== '';
+                const zipFilled = zipEl && zipEl.value.trim() !== '';
+                const addressFilled = addressEl && addressEl.value.trim() !== '';
                 
-                isReady = ownerName && tel && zip && address;
+                isReady = ownerNameFilled && telFilled && zipFilled && addressFilled;
 
                 if (notice) {
                     if (isReady) {
-                        notice.style.display = 'none';
+                        notice.style.display = 'none'; // 準備ができたら通知を隠す
                     } else {
-                        notice.style.display = 'block';
-                        notice.textContent = '必須のお客様情報(*)を全て入力してください。';
+                        notice.style.display = 'block'; // 準備ができていなければ通知を表示
+                        // 具体的にどのフィールドが未入力かを示すメッセージを作成
+                        let missingFields = [];
+                        if (!ownerNameFilled) missingFields.push('所有者氏名');
+                        if (!telFilled) missingFields.push('連絡先電話番号');
+                        if (!zipFilled) missingFields.push('郵便番号');
+                        if (!addressFilled) missingFields.push('住所');
+                        
+                        if (missingFields.length > 0) {
+                            notice.textContent = `必須項目(*)が未入力です: ${missingFields.join('、')}`;
+                        } else {
+                            // これは通常起こらないはずだが、念のため
+                            notice.textContent = '必須のお客様情報(*)を全て入力してください。';
+                        }
                     }
                 }
+                // -- ^^^ FIX ^^^ --
             }
 
             saveButton.disabled = !isReady;
@@ -453,16 +473,19 @@
                         const address = data.results[0].address1 + data.results[0].address2 + data.results[0].address3;
                         addressInput.value = address;
                         statusEl.textContent = '住所が自動入力されました。';
-                        updateSaveButtonState();
+                        updateSaveButtonState(); // 住所入力後にボタン状態を更新
                     } else {
                         statusEl.textContent = '該当する住所が見つかりませんでした。';
+                         updateSaveButtonState(); // 見つからなくてもチェックは走らせる
                     }
                 } catch (error) {
                     console.error('Zip code lookup error:', error);
                     statusEl.textContent = '住所の検索に失敗しました。';
+                     updateSaveButtonState(); // エラーでもチェックは走らせる
                 }
             } else {
                 statusEl.textContent = '';
+                 updateSaveButtonState(); // 7桁未満でもチェックは走らせる
             }
         }
 
@@ -487,13 +510,18 @@
                 shataiBango: document.getElementById('common-shatai-bango').value,
             };
 
+            // 約款テキストを取得
+            let yakkanElementId = (currentForm === 'form-houchi') ? 'houchi-yakkan' : 'shaken-yakkan';
+            let yakkanElement = document.getElementById(yakkanElementId);
+            formData.yakkanText = yakkanElement ? yakkanElement.innerText : '約款取得エラー';
+
+
             if (currentForm === 'form-houchi') {
                 const vehicleTypeEl = document.querySelector('input[name="houchi-vehicle-type"]:checked');
                 formData.vehicleType = vehicleTypeEl ? vehicleTypeEl.value : '';
                 formData.delegation = document.getElementById('houchi-delegation').checked;
                 formData.certificateType1 = document.getElementById('houchi-certificate-1').checked;
                 formData.certificateType2 = document.getElementById('houchi-certificate-2').checked;
-                formData.yakkanText = document.getElementById('houchi-yakkan').innerText;
             } else if (currentForm === 'form-shaken') {
                 formData.ownerName = document.getElementById('shaken-owner-name').value;
                 formData.tel = document.getElementById('shaken-tel').value;
@@ -501,7 +529,6 @@
                 formData.address = document.getElementById('shaken-address').value;
                 let recipient = document.getElementById('shaken-recipient-name').value;
                 formData.recipientName = recipient || formData.ownerName;
-                formData.yakkanText = document.getElementById('shaken-yakkan').innerText;
             }
 
             const overlay = document.getElementById('saving-overlay');
