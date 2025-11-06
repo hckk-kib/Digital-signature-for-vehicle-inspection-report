@@ -49,9 +49,9 @@
                                 <option value="麻生店">麻生店</option>
                                 <option value="美しが丘店">美しが丘店</option>
                                 <option value="日吉店">日吉店</option>
-                                <option value="都筑桜並木店">都筑桜並木店</option>
-                                 <option value="青葉店">青葉店</option>
+                                <option value="青葉店">青葉店</option>
                                 <option value="川崎多摩店">川崎多摩店</option>
+                                <option value="都筑桜並木店">都筑桜並木店</option>
                                 <option value="川崎幸店">川崎幸店</option>
                                 <option value="新百合ヶ丘店">新百合ヶ丘店</option>
                                 <option value="鷺沼店">鷺沼店</option>
@@ -64,7 +64,7 @@
                                 <option value="U-Select鶴見">U-Select鶴見</option>
                                 <option value="U-Select川崎北">U-Select川崎北</option>
                                 <option value="U-Select横浜青葉">U-Select横浜青葉</option>
-                               
+                                
                             </select>
                         </div>
                         <div>
@@ -241,9 +241,9 @@
 
 
     <script>
-        // --- ▼▼▼ 【！】あなたのGASのURLに差し替えてください ▼▼▼ ---
+        // --- ▼▼▼ 【！】新しいGASのURLに差し替え済み！ ▼▼▼ ---
         const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzshaGx2to9Yu8_vRJ3Qg08RDwuy5HEMTMknEiUlzxpyvgzJP8rOKPLD-lfszrKxT7P/exec'; 
-        // --- ▲▲▲ 【！】あなたのGASのURLに差し替えてください ▲▲▲ ---
+        // --- ▲▲▲ 【！】新しいGASのURLに差し替え済み！ ▲▲▲ ---
 
         let currentForm = null;
         let signaturePad = null;
@@ -335,7 +335,7 @@
                 window.addEventListener('resize', resizeCanvas);
                 resizeCanvas(); // 最初のサイズ調整
                 updateSaveButtonState();
-            }, 300); // <-- 100msから300msに変更し、レイアウト確定を待つ
+            }, 300); // <-- レイアウト確定を待つ
             // --- ▲▲▲ 【！】ペンずれ対策 ▲▲▲ ---
         }
         
@@ -529,12 +529,10 @@
             overlay.classList.remove('hidden');
 
             try {
+                // --- ▼▼▼ 【！】CORS対策（mode: 'cors'）▼▼▼ ---
                 const response = await fetch(GAS_WEB_APP_URL, {
                     method: 'POST',
-                    // --- ▼▼▼ 【！】CORS対策 ▼▼▼ ---
-                    mode: 'cors', // 「他人」と通信します、と宣言
-                    // redirect は不要
-                    // --- ▲▲▲ 【！】CORS対策 ▲▲▲ ---
+                    mode: 'cors', // GoogleサイトからGitHubに移行したため 'cors' が必要
                     cache: 'no-cache',
                     headers: { 
                         'Content-Type': 'text/plain;charset=utf-8' 
@@ -545,9 +543,9 @@
                 // 'cors'モードではレスポンスを読めるので、
                 // 本当に成功したか（response.ok）をチェックする
                 if (!response.ok) {
-                    // もしサーバーがエラーを返したら
                     throw new Error(`サーバーエラー: ${response.status} ${response.statusText}`);
                 }
+                // --- ▲▲▲ 【！】CORS対策 ▲▲▲ ---
 
                 overlay.classList.add('hidden');
                 // alert('保存リクエストを送信しました。\n数秒後、Googleドライブとスプレッドシートをご確認ください。');
@@ -610,8 +608,7 @@
         
         // --- ▼▼▼ 【！】「最初からやり直す」バグ修正 ▼▼▼ ---
         function resetAll() {
-            // "confirm" はGoogleサイトでブロックされるため削除
-            // if (!confirm('全ての入力内容をリセットします。よろしいですか？')) return; 
+            // "confirm" はGoogleサイト/iframeでブロックされるため削除
             
             commonInputs.forEach(input => input.value = '');
             document.getElementById('common-tenpo').selectedIndex = 0;
@@ -628,7 +625,11 @@
             
             checkCommonInputs();
         }
-        // --- ▲▲▲ 【！】「最初からやり直す」バグ修正 ▲▲▲ ---
+        // --- ▲▲▲ 【！】「最初からやり直す」バGOTO 3
+// 
+// 3
+// 
+// 修正 ▲▲▲ ---
 
         // 初期チェック
         checkCommonInputs();
