@@ -1,190 +1,644 @@
-// ▼▼▼ 設定項目 ▼▼▼
-const PARENT_FOLDER_ID = '1g2KR6-10w6XrhDQB5qei0Vm_6QiJSVfj'; 
-const SPREADSHEET_ID = '10XaIjInvhmThe0yGDiaTVqUIpRJsKSL0GfAls4JrvYo';
-// ▲▲▲ 設定項目 ▲▲▲
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>車検受付同意書 電子署名システム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/1.5.3/signature_pad.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fetch-jsonp@1.1.3/build/fetch-jsonp.min.js"></script>
+    <style>
+        /* カスタムスクロールバー */
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #555; }
+        .signature-pad-container { border: 2px dashed #ccc; border-radius: 0.5rem; position: relative; }
+        
+        /* ▼▼▼ 【！】ペンずれ対策 ▼▼▼ */
+        canvas {
+            width: 100%;
+            height: 200px;
+            display: block;
+            touch-action: none; /* スマホやタブレットでの不要なスクロールを禁止 */
+        }
+        /* ▲▲▲ 【！】ペンずれ対策 ▲▲▲ */
 
-// --- ▼▼▼ 【！】CORS対策（これがないとGitHubから呼べない）▼▼▼ ---
-// ブラウザからの「POSTしていいですか？」という事前確認（preflight）に応答する
-function doOptions(e) {
-  return ContentService.createTextOutput()
-    .setHeader('Access-Control-Allow-Origin', '*') // すべてのドメインを許可
-    .setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-    .setHeader('Access-Control-Allow-Headers', 'Content-Type');
-}
-// --- ▲▲▲ 【！】CORS対策 ▲▲▲ ---
+        .saving-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+        .spinner { border: 8px solid #f3f3f3; border-top: 8px solid #3498db; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .completed { background-color: #16a34a !important; color: white !important; cursor: not-allowed !important; }
+        .waiting { background-color: #d1d5db !important; cursor: not-allowed !important; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-4 md:p-8 max-w-4xl">
+        <header class="bg-white shadow-md rounded-lg p-6 mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 text-center">車検受付同意書 電子署名システム</h1>
+            <p class="text-center text-gray-500 mt-2">同意書を選択し、必要事項をご入力の上、電子署名をお願いいたします。</p>
+        </header>
 
-function doGet(e) {
-  return HtmlService.createHtmlOutput("<p>電子署名システムのバックエンドです。正しく設定されています。</p>");
-}
+        <div id="common-staff-inputs" class="bg-white shadow-md rounded-lg p-6 mb-8">
+            <fieldset class="p-4 rounded-lg">
+                <legend class="text-xl font-semibold text-gray-700 px-2">1. スタッフ入力欄</legend>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                        <div>
+                            <label for="common-tenpo" class="block text-gray-700 font-semibold mb-2">店舗名</label>
+                            <select id="common-tenpo" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                                <option value="">選択してください</option>
+                                <option value="麻生店">麻生店</option>
+                                <option value="美しが丘店">美しが丘店</option>
+                               <option value="青葉店">青葉店</option>
+                                <option value="川崎多摩店">川崎多摩店</option>
+                                <option value="日吉店">日吉店</option>
+                                <option value="都筑桜並木店">都筑桜並木店</option>
+                                <option value="川崎幸店">川崎幸店</option>
+                                <option value="新百合ヶ丘店">新百合ヶ丘店</option>
+                                <option value="鷺沼店">鷺沼店</option>
+                                <option value="高津店">高津店</option>
+                                <option value="綱島店">綱島店</option>
+                                <option value="向ヶ丘店">向ヶ丘店</option>
+                                <option value="岸根公園店">岸根公園店</option>
+                                <option value="すみれが丘店">すみれが丘店</option>
+                                <option value="あざみ野店">あざみ野店</option>
+                                <option value="U-Select鶴見">U-Select鶴見</option>
+                                <option value="U-Select川崎北">U-Select川崎北</option>
+                                <option value="U-Select横浜青葉">U-Select横浜青葉</option>
+                               
+                            </select>
+                        </div>
+                        <div>
+                            <label for="common-staff" class="block text-gray-700 font-semibold mb-2">受付スタッフ名</label>
+                            <input type="text" id="common-staff" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="例：山田 太郎">
+                        </div>
+                        <div>
+                            <label for="common-toroku-bango" class="block text-gray-700 font-semibold mb-2">登録番号</label>
+                            <input type="text" id="common-toroku-bango" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="例：品川 300 あ 12-34">
+                        </div>
+                        <div>
+                            <label for="common-shatai-bango" class="block text-gray-700 font-semibold mb-2">車台番号</label>
+                            <input type="text" id="common-shatai-bango" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="例：NCP58-1234567">
+                        </div>
+                </div>
+            </fieldset>
+        </div>
 
-function doPost(e) {
-  Logger.log('Received POST request.');
-  let postData;
-  let dataString;
+        <div id="form-selector" class="bg-white shadow-md rounded-lg p-6 mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-700">2. 同意書の選択</h2>
+                <button id="reset-all-button" onclick="resetAll()" class="hidden bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">最初からやり直す</button>
+            </div>
+            <div class="flex flex-col md:flex-row gap-4">
+                <button id="show-shaken-form" onclick="showForm('form-shaken')" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    <span class="button-text">保安基準適合証発行時の<br>車検証後日郵送に関する同意書</span>
+                </button>
+                <button id="show-houchi-form" onclick="showForm('form-houchi')" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    <span class="button-text">放置違反金滞納情報照会における同意書</span>
+                </button>
+            </div>
+        </div>
 
-  try {
-    if (e.postData && e.postData.contents) {
-      dataString = e.postData.contents;
-    } else {
-      throw new Error('No valid POST data found.');
-    }
+        <form id="form-houchi" class="hidden bg-white shadow-md rounded-lg p-6 md:p-8 mb-8">
+            <h2 class="text-2xl font-bold text-blue-800 mb-6 border-b-2 border-blue-200 pb-2">放置違反金滞納情報照会における同意書</h2>
+            <div class="space-y-6">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 mt-8">約款</h3>
+                    <div id="houchi-yakkan" class="h-48 border border-gray-300 rounded-lg p-4 overflow-y-auto custom-scrollbar bg-gray-50">
+                        <p class="text-sm text-gray-600 whitespace-pre-line">
+                            車検を受けられるお客様へ
+継続検査（車検）のお手続きに際して下記事項についてご確認いただき、ご承諾下いますようご理解とご協力をお願い申し上げます。
+１．放置違反金滞納情報照会について
+平成１８年６月から、都道府県公安委員会（警察）が放置駐車違反の車両の使用者に放置違反金の納付を命ずる制度がスタートし、この命令を受
+けたにもかかわらず、放置違反金を支払わないまま都道府県公安委員会から督促を受けた方は、これを納付しなければ、当該命令に係る自動車の次
+回の車検（継続検査又は構造等変更検査）を完了することができないこととなりました（道路交通法第５１条の７第１項及び第２項）。
+したがって、放置違反金を滞納されている方は、速やかにこれを納付し、その証明書を車検に際してご提示いただくようお願い申し上げます（納
+付いただけない場合は、法令の規定により、都道府県公安委員会が行う滞納処分の対象となります。）。
+納付書をお持ちでない方は、再発行いたしますので、各都道府県警察本部交通部にお問い合わせ下さい。
+また、車検業務を円滑に完了するため、自動車整備事業者が皆様及び皆様のお車に関する情報を警察に照会し、
+必要な確認を行う場合には、以下の同意書が必要となります。
+                                                                    警 察 庁
+                                                                    国 土 交 通 省
+２．継続検査（車検）の電磁的方法による申請手続きについて
+平成２９年４月より、継続検査（車検）に必要な書類の作成や申請手続きを電磁的方法により行うことが可能となりましたが、電磁的方法により
+行う場合は、法令の規定により、事前にお客様（使用者）の承諾を頂くことが必要となっています。（法令の規定：道路運送車両法第９４条の５第
+２項、同施行令第１０条及び自動車損害賠償保障法第９条第２項、同施行令第１条をいう。）
+                        </p>
+                    </div>
+                </div>
+
+                <div id="houchi-agreement-section" class="mt-6 space-y-4 border-t pt-6">
+                    <p class="font-semibold text-gray-800">継続検査（車検）における確認事項及び承諾書</p>
+                    
+                    <div class="p-4 border rounded-lg bg-gray-50">
+                        <p class="mb-3 text-sm text-gray-700">１．この度、継続検査等の申請を貴社（店）に依頼するにあたり、貴社（店）が私及び私の下記車両に係る放置違反金の滞納の有無に関する情報を（自動車整備振興会を通じて）警察に照会・確認することに同意します。<strong class="text-red-600">（いずれか1つを選択）</strong></p>
+                        <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+                            <label class="flex items-center"><input type="radio" name="houchi-vehicle-type" value="軽自動車" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"> <span class="ml-2">軽自動車</span></label>
+                            <label class="flex items-center"><input type="radio" name="houchi-vehicle-type" value="登録自動車" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"> <span class="ml-2">登録自動車</span></label>
+                            <label class="flex items-center"><input type="radio" name="houchi-vehicle-type" value="二輪車" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"> <span class="ml-2">二輪車</span></label>
+                        </div>
+                    </div>
     
-    postData = JSON.parse(dataString);
-    Logger.log('Parsed JSON data successfully.');
-
-    const signatureImage = postData.signature.replace(/^data:image\/(png|jpeg);base64,/, "");
-    const imageBlob = Utilities.newBlob(Utilities.base64Decode(signatureImage), 'image/png', 'signature.png');
-
-    const htmlContent = createHtmlForPdf(postData);
-    const htmlBlob = Utilities.newBlob(htmlContent, MimeType.HTML, 'temp.html');
-    const pdfBlob = htmlBlob.getAs(MimeType.PDF);
-
-    const today = new Date();
-    const formattedDate = Utilities.formatDate(today, 'JST', 'yyyy-MM-dd');
-    const formattedTime = Utilities.formatDate(today, 'JST', 'HH-mm-ss');
-
-    const parentFolder = DriveApp.getFolderById(PARENT_FOLDER_ID);
-    
-    let tenpoFolder;
-    const tenpoFolders = parentFolder.getFoldersByName(postData.tenpo);
-    if (tenpoFolders.hasNext()) {
-      tenpoFolder = tenpoFolders.next();
-    } else {
-      tenpoFolder = parentFolder.createFolder(postData.tenpo);
-    }
-    
-    let dateFolder;
-    const dateFolders = tenpoFolder.getFoldersByName(formattedDate);
-    if (dateFolders.hasNext()) {
-      dateFolder = dateFolders.next();
-    } else {
-      dateFolder = tenpoFolder.createFolder(formattedDate);
-    }
-    
-    const fileName = `${formattedTime}_${postData.torokuBango}_${postData.shataiBango}.pdf`;
-    pdfBlob.setName(fileName);
-    const pdfFile = dateFolder.createFile(pdfBlob);
-    
-    Logger.log('PDF created successfully. File URL: ' + pdfFile.getUrl());
-    
-    logToSpreadsheet(postData, pdfFile.getUrl());
-
-    // --- ▼▼▼ 【！】CORS対策（レスポンスにも許可を追加）▼▼▼ ---
-    return ContentService.createTextOutput(JSON.stringify({status: 'success', url: pdfFile.getUrl()}))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeader('Access-Control-Allow-Origin', '*'); // すべてのドメインを許可
-    // --- ▲▲▲ 【！】CORS対策 ▲▲▲ ---
-
-  } catch (err) {
-    Logger.log('Error in doPost: ' + err.toString() + '\nStack: ' + err.stack);
-    
-    // --- ▼▼▼ 【！】CORS対策（エラー時にも許可を追加）▼▼▼ ---
-    return ContentService.createTextOutput(JSON.stringify({status: 'error', message: err.toString()}))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeader('Access-Control-Allow-Origin', '*'); // すべてのドメインを許可
-    // --- ▲▲▲ 【！】CORS対策 ▲▲▲ ---
-  }
-}
-
-function logToSpreadsheet(data, pdfUrl) {
-  // (この関数の中身は変更ありません)
-  try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    
-    if (data.formType === 'form-shaken') {
-      const sheetName = '車検証同意';
-      let sheet = ss.getSheetByName(sheetName);
-      if (!sheet) {
-        sheet = ss.insertSheet(sheetName);
-        const headers = ['送付先郵便番号', '送付先住所', '送付先氏名/会社名', '所有者氏名', '連絡先TEL', 'タイムスタンプ', '店舗名', '受付スタッフ', '登録番号', '車台番号', 'PDFリンク'];
-        sheet.appendRow(headers);
-        sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
-        sheet.setFrozenRows(1); 
-      }
-      const rowData = [data.zip, data.address, data.recipientName, data.ownerName, data.tel, data.timestamp, data.tenpo, data.staff, data.torokuBango, data.shataiBango, pdfUrl];
-      sheet.appendRow(rowData);
-
-    } else if (data.formType === 'form-houchi') {
-      const sheetName = '放置違反';
-      let sheet = ss.getSheetByName(sheetName);
-      if (!sheet) {
-        sheet = ss.insertSheet(sheetName);
-        const headers = ['タイムスタンプ', '店舗名', '受付スタッフ', '登録番号', '車台番号', '車両タイプ', '委任承諾', '証明書承諾1', '証明書承諾2', 'PDFリンク'];
-        sheet.appendRow(headers);
-        sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
-        sheet.setFrozenRows(1); 
-      }
-      const rowData = [data.timestamp, data.tenpo, data.staff, data.torokuBango, data.shataiBango, data.vehicleType, data.delegation ? 'はい' : 'いいえ', data.certificateType1 ? 'はい' : 'いいえ', data.certificateType2 ? 'はい' : 'いいえ', pdfUrl];
-      sheet.appendRow(rowData);
-    }
-    Logger.log('Successfully logged to spreadsheet.');
-  } catch (err) {
-    Logger.log('Failed to log to spreadsheet: ' + err.toString());
-  }
-}
-
-function createHtmlForPdf(data) {
-  // (この関数の中身は変更ありません)
-    const signatureImage = data.signature;
-    let formSpecificHtml = '';
-    let title = '';
-    let yakkanHtml = `
-        <h2 style="font-size: 1.2em; margin-bottom: 5px;">約款本文</h2>
-        <pre style="font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; font-size: 7px; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #eee; padding: 8px; background-color: #f9f9f9; max-height: 250px; overflow: hidden;">
-${data.yakkanText || '約款テキストがありません'}
-        </pre>
-    `;
-
-    if (data.formType === 'form-houchi') {
-        title = '放置違反金滞納情報照会における同意書';
-        formSpecificHtml = `
-            <h3 style="font-size: 1.1em; margin-bottom: 5px;">承諾事項</h3>
-            <h4 style="font-size: 1em; margin: 5px 0 2px 0;">１．車両タイプ</h4>
-            <p style="padding-left: 10px; border: 1px solid #eee; background: #f9f9f9; font-size: 0.9em; margin: 0;">${data.vehicleTypeText || '未選択'}</p>
-            <h4 style="font-size: 1em; margin: 10px 0 2px 0;">２．継続検査（車検）の電磁的方法による申請手続き</h4>
-            <p style="padding-left: 10px; border: 1px solid #eee; background: #f9f9f9; font-size: 0.9em; margin: 2px 0;">${data.delegationText || '未承諾'}</p>
-            <p style="padding-left: 10px; border: 1px solid #eee; background: #f9f9f9; font-size: 0.9em; margin: 2px 0;">${data.certificate1Text || '未承諾'}</p>
-            <p style="padding-left: 10px; border: 1px solid #eee; background: #f9f9f9; font-size: 0.9em; margin: 2px 0;">${data.certificate2Text || '未承諾'}</p>
-        `;
-    } else if (data.formType === 'form-shaken') {
-        title = '保安基準適合証発行時の車検証後日郵送に関する同意書';
-        formSpecificHtml = `
-            <h3 style="font-size: 1.1em; margin-bottom: 5px;">お客様情報</h3>
-            <p><strong>所有者氏名:</strong> ${data.ownerName}</p>
-            <p><strong>連絡先電話番号:</strong> ${data.tel}</p>
-            <p><strong>送付先郵便番号:</strong> ${data.zip}</p>
-            <p><strong>送付先住所:</strong> ${data.address}</p>
-            <p><strong>送付先氏名/会社名:</strong> ${data.recipientName}</p>
-        `;
-    }
-
-    return `
-        <html>
-        <head><style>
-            body { font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; font-size: 10px; }
-            h1, h2, h3 { border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-top: 10px; }
-            h1 { font-size: 1.5em; }
-            p { margin: 4px 0; }
-            .container { width: 95%; margin: auto; }
-            .signature-box { border: 1px solid #000; padding: 5px; margin-top: 10px; page-break-inside: avoid; }
-        </style></head>
-        <body>
-            <div class="container">
-                <h1>${title}</h1>
-                <p><strong>署名日時:</strong> ${data.timestamp}</p>
-                <h2 style="font-size: 1.2em;">車両・店舗情報</h2>
-                <p><strong>店舗名:</strong> ${data.tenpo}</p>
-                <p><strong>受付スタッフ名:</strong> ${data.staff}</p>
-                <p><strong>登録番号:</strong> ${data.torokuBango}</p>
-                <p><strong>車台番号:</strong> ${data.shataiBango}</p>
-                ${formSpecificHtml}
-                ${yakkanHtml}
-                <div class="signature-box">
-                    <h3 style="font-size: 1.1em;">電子署名</h3>
-                    <img src="${signatureImage}" style="max-width: 250px; height: auto;" />
+                    <div class="p-4 border rounded-lg bg-gray-50">
+                        <p class="mb-3 text-sm text-gray-700">２．継続検査（車検）の電磁的方法による申請手続きに関してチェックを付けた事項について承諾します。</p>
+                        <div class="pl-4 mt-2">
+                            <label class="flex items-start">
+                                <input type="checkbox" id="houchi-delegation" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-1 flex-shrink-0">
+                                <span class="ml-2 text-sm">①〔継続検査（車検）申請に関する委任について〕<br>継続検査の申請を電磁的方法により行う場合、申請代理人に対し、申請に必要な情報を提供すること及び申請を委任すること。</span>
+                            </label>
+                        </div>
+                        <div class="pl-4 mt-4">
+                            <p class="mb-3 text-sm">②〔継続検査（車検）に際し民間が発行する証明書の取扱に関する承諾〕 <strong class="text-red-600">（両方にチェックが必要です）</strong></p>
+                            <div class="space-y-3">
+                                <label class="flex items-start">
+                                    <input type="checkbox" id="houchi-certificate-1" value="保安基準適合証" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-1 flex-shrink-0">
+                                    <span class="ml-2 text-sm">保安基準適合証の交付に代えて、当該証明書に記載すべき事項を電磁的方法により登録情報処理機関に提供すること。</span>
+                                </label>
+                                <label class="flex items-start">
+                                    <input type="checkbox" id="houchi-certificate-2" value="自動車損害賠償責任保険証明書" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-1 flex-shrink-0">
+                                    <span class="ml-2 text-sm">自動車損害賠償責任保険証明書又は自動車損害賠償責任共済証明書に記載すべき事項を、電磁的方法により登録情報処理機関に提供すること。</span>
+                                </label>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-4">※ 「電磁的方法」とは：紙による申請や関係書類の国への提出に代えて、電子データにより国へ送信するものです。なお、当該電子データは、継続検査（車検）の手続き以外には使用されません</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </body>
-        </html>
-    `;
-}
+            <div id="signature-section-houchi" class="mt-8"></div>
+        </form>
+
+        <form id="form-shaken" class="hidden bg-white shadow-md rounded-lg p-6 md:p-8 mb-8">
+            <h2 class="text-2xl font-bold text-green-800 mb-6 border-b-2 border-green-200 pb-2">保安基準適合証発行時の車検証後日郵送に関する同意書</h2>
+
+            <fieldset class="border border-gray-300 p-4 rounded-lg">
+                <legend class="text-lg font-semibold text-gray-600 px-2">お客様入力欄</legend>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    <div>
+                        <label for="shaken-owner-name" class="block text-gray-700 font-semibold mb-2">所有者氏名 <span class="text-red-500">*</span></label>
+                        <input type="text" id="shaken-owner-name" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="例：鈴木 一郎">
+                    </div>
+                    <div>
+                        <label for="shaken-tel" class="block text-gray-700 font-semibold mb-2">連絡先電話番号 <span class="text-red-500">*</span></label>
+                        <input type="tel" id="shaken-tel" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="例：090-1234-5678">
+                    </div>
+                    <div>
+                        <label for="shaken-zip" class="block text-gray-700 font-semibold mb-2">送付先 郵便番号 <span class="text-red-500">*</span></label>
+                        <input type="text" id="shaken-zip" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="例：1000001 (ハイフンなし)">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="shaken-address" class="block text-gray-700 font-semibold mb-2">送付先 住所 <span class="text-red-500">*</span></label>
+                        <input type="text" id="shaken-address" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="郵便番号を入力すると自動入力されます">
+                        <p id="address-status" class="text-sm text-blue-600 mt-1 h-4"></p>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="shaken-recipient-name" class="block text-gray-700 font-semibold mb-2">送付先 氏名または会社名</label>
+                        <input type="text" id="shaken-recipient-name" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="（所有者氏名と同じ場合は空欄で可）">
+                    </div>
+                </div>
+            </fieldset>
+
+            <div class="mt-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">車検証発送に関する約款・注意事項</h3>
+                <div id="shaken-yakkan" class="h-48 border border-gray-300 rounded-lg p-4 overflow-y-auto custom-scrollbar bg-gray-50">
+                    <p class="text-sm text-gray-600 whitespace-pre-line">
+                        クリックラップ契約に関する注意事項：
+                        お客様が以下の「電子署名」ボタンをクリックし、署名プロセスを完了した時点で、お客様は下記の「車検証発送に関する約款」の全条項に同意したものとみなされます。本契約は、電子消費者契約及び電子承諾通知に関する民法の特例に関する法律に基づき、有効に成立します。署名を行う前に、必ず約款の内容を十分にご確認ください。
+
+                        --- 車検証発送に関する約款 ---
+自動車検査証（車検証）について							
+手元に届きましたら、氏名、住所、登録番号、車検証有効期限等の記載内容の確認をお願い致します。							
+検査標章（車検ステッカー）について							
+フロントガラスの室内側から、車検標章を貼り付けしてください。							
+ステッカーの貼り付け方法につきましては、車検証と同封させて頂きます。							
+
+
+保安基準適合章有効期限について							
+保安基準適合章の有効期限は発行より2週間となります。							
+有効期限が切れますと、お車の運行が出来ませんのでご注意下さい。							
+
+また、車検証の積み忘れ、ステッカーの貼り忘れも同様に、お車の運行はできません。							
+
+自動車検査証の発送に関して							
+自動車検査証の発送に関してはレターパックライトを使用してお客様に送らせて頂きます。							
+レターパックライトに関しては、お客様ご自宅へポストインさせて頂く配送方法となり、							
+追跡番号を使用して配送状況を確認頂く事が出来ます。							
+ポストに車検証が入らない場合には不在表が投函されますので、再配達のご連絡をお願いします。							
+                    </p>
+                </div>
+                <p id="shaken-validation-notice" class="text-sm text-red-600 mt-2 font-semibold">お客様情報を全て入力すると署名が可能になります。</p>
+            </div>
+
+            <div id="signature-section-shaken" class="mt-8"></div>
+        </form>
+
+    </div>
+
+    <div id="saving-overlay" class="hidden saving-overlay">
+        <div class="text-center">
+            <div class="spinner"></div>
+            <p class="text-white text-lg mt-4 font-semibold">PDFを作成し、Googleドライブに保存しています...</p>
+        </div>
+    </div>
+
+
+    <script>
+        // --- ▼▼▼ 【！】新しいGASのURLに差し替え済み！ ▼▼▼ ---
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyZaNVXb924RkjDYWnR7opG7O2eoyuMsdeUt9-PmzC9xpgN4TDdSfwGxWpIOctUrZy6/exec'; 
+        // --- ▲▲▲ 【！】新しいGASのURLに差し替え済み！ ▲▲▲ ---
+
+        let currentForm = null;
+        let signaturePad = null;
+        const houchiButton = document.getElementById('show-houchi-form');
+        const shakenButton = document.getElementById('show-shaken-form');
+        const houchiButtonText = houchiButton.querySelector('.button-text').innerHTML;
+        const shakenButtonText = shakenButton.querySelector('.button-text').innerHTML;
+        
+        // --- ▼▼▼ 【！】'formShaken' の定義を追加 ▼▼▼ ---
+        const shakenInputs = ['shaken-owner-name', 'shaken-tel', 'shaken-zip', 'shaken-address'];
+        const formHouchi = document.getElementById('form-houchi');
+        const formShaken = document.getElementById('form-shaken'); // <-- バグ修正！
+        
+        // --- 共通の署名セクションHTML ---
+        const signatureHTML = `
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">電子署名</h3>
+            <p class="text-sm text-gray-500 mb-4">以下の枠内に、楷書でご署名をお願いいたします。</p>
+            <div class="signature-pad-container">
+                <canvas></canvas>
+            </div>
+            <div class="flex flex-col md:flex-row gap-4 mt-4">
+                <button type="button" onclick="hideCurrentForm()" class="w-full md:w-auto bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition duration-300">選択に戻る</button>
+                <button type="button" onclick="clearSignature()" class="w-full md:w-auto bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-6 rounded-lg transition duration-300">書き直す</button>
+                <button type="button" onclick="saveSignature()" id="save-button" disabled class="w-full md:w-1/2 flex-grow bg-indigo-300 text-white font-bold py-3 px-6 rounded-lg">同意して保存する</button>
+            </div>
+        `;
+        
+        // --- ▼▼▼ 【！】'input' イベントに統一済み ▼▼▼ ---
+        function addShakenListeners() {
+            formShaken.addEventListener('input', updateSaveButtonState);
+            setupZipCodeListener();
+        }
+
+        function removeShakenListeners() {
+            formShaken.removeEventListener('input', updateSaveButtonState);
+            const zipEl = document.getElementById('shaken-zip');
+            if (zipEl) {
+                zipEl.removeEventListener('input', lookupAddress);
+            }
+        }
+        
+        function addHouchiListeners() {
+            formHouchi.addEventListener('input', updateSaveButtonState);
+        }
+
+        function removeHouchiListeners() {
+            formHouchi.removeEventListener('input', updateSaveButtonState);
+        }
+        // --- ▲▲▲ 【！】'input' イベントに統一済み ▲▲▲ ---
+
+        // --- フォーム表示切り替え ---
+        function showForm(formId) {
+            document.getElementById('form-houchi').classList.add('hidden');
+            document.getElementById('form-shaken').classList.add('hidden');
+            
+            const formElement = document.getElementById(formId);
+            formElement.classList.remove('hidden');
+            currentForm = formId;
+
+            // --- ▼▼▼ 【！】自動スクロール機能 ▼▼▼ ---
+            formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // --- ▲▲▲ 【！】自動スクロール機能 ▲▲▲ ---
+
+            if (formId === 'form-houchi') {
+                shakenButton.querySelector('.button-text').textContent = '待機中';
+                shakenButton.classList.add('waiting');
+                houchiButton.disabled = true;
+                removeShakenListeners(); 
+                addHouchiListeners();   
+            } else {
+                houchiButton.querySelector('.button-text').textContent = '待機中';
+                houchiButton.classList.add('waiting');
+                houchiButton.disabled = true;
+                removeHouchiListeners(); 
+                addShakenListeners();   
+            }
+
+            const signatureSectionId = `signature-section-${formId.split('-')[1]}`;
+            const signatureSection = document.getElementById(signatureSectionId);
+            signatureSection.innerHTML = signatureHTML;
+            
+            window.removeEventListener('resize', resizeCanvas);
+
+            // --- ▼▼▼ 【！】ペンずれ対策（300ms遅延） ▼▼▼ ---
+            setTimeout(() => {
+                const canvas = signatureSection.querySelector('canvas');
+                if (!canvas) return;
+                signaturePad = new SignaturePad(canvas, { backgroundColor: 'rgb(255, 255, 255)' });
+                window.addEventListener('resize', resizeCanvas);
+                resizeCanvas(); // 最初のサイズ調整
+                updateSaveButtonState();
+            }, 300); // <-- レイアウト確定を待つ
+            // --- ▲▲▲ 【！】ペンずれ対策 ▲▲▲ ---
+        }
+        
+        function hideCurrentForm() {
+            if (currentForm) {
+                document.getElementById(currentForm).classList.add('hidden');
+                if (currentForm === 'form-houchi') { removeHouchiListeners(); } 
+                else if (currentForm === 'form-shaken') { removeShakenListeners(); }
+                currentForm = null;
+            }
+            checkCommonInputs();
+        }
+
+        // --- ▼▼▼ 【！】ペンずれ対策（高DPI対応）▼▼▼ ---
+        function resizeCanvas() {
+            if (!signaturePad || !signaturePad.canvas) return;
+            const canvas = signaturePad.canvas;
+            
+            // 既存の署名をバックアップ
+            const data = signaturePad.toData(); 
+            
+            // 高DPI (devicePixelRatio) を考慮してキャンバスの解像度を設定
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext("2d").scale(ratio, ratio);
+
+            // 署名を書き戻す
+            signaturePad.fromData(data); 
+        }
+        // --- ▲▲▲ 【！】ペンずれ対策（高DPI対応）▲▲▲ ---
+        
+        function isHouchiFormValid() {
+            const vehicleType = document.querySelector('input[name="houchi-vehicle-type"]:checked');
+            const delegationEl = document.getElementById('houchi-delegation');
+            const certificate1El = document.getElementById('houchi-certificate-1');
+            const certificate2El = document.getElementById('houchi-certificate-2');
+
+            const delegation = delegationEl && delegationEl.checked;
+            const certificate1 = certificate1El && certificate1El.checked;
+            const certificate2 = certificate2El && certificate2El.checked;
+            
+            return !!vehicleType && delegation && certificate1 && certificate2;
+        }
+
+        function updateSaveButtonState() {
+            const saveButton = document.getElementById('save-button');
+            if (!saveButton) {
+                return; 
+            }
+
+            let isReady = false;
+            if (currentForm === 'form-houchi') {
+                isReady = isHouchiFormValid();
+            
+            } else if (currentForm === 'form-shaken') {
+                const notice = document.getElementById('shaken-validation-notice');
+                const ownerNameEl = document.getElementById('shaken-owner-name');
+                const telEl = document.getElementById('shaken-tel');
+                const zipEl = document.getElementById('shaken-zip');
+                const addressEl = document.getElementById('shaken-address');
+
+                const ownerNameFilled = ownerNameEl && ownerNameEl.value.trim() !== '';
+                const telFilled = telEl && telEl.value.trim() !== '';
+                const zipFilled = zipEl && zipEl.value.trim() !== '';
+                const addressFilled = addressEl && addressEl.value.trim() !== '';
+                
+                isReady = ownerNameFilled && telFilled && zipFilled && addressFilled;
+
+                if (notice) {
+                    if (isReady) {
+                        notice.style.display = 'none'; 
+                    } else {
+                        notice.style.display = 'block'; 
+                        let missingFields = [];
+                        if (!ownerNameFilled) missingFields.push('所有者氏名');
+                        if (!telFilled) missingFields.push('連絡先電話番号');
+                        if (!zipFilled) missingFields.push('郵便番号');
+                        if (!addressFilled) missingFields.push('住所');
+                        
+                        if (missingFields.length > 0) {
+                            notice.textContent = `必須項目(*)が未入力です: ${missingFields.join('、')}`;
+                        } else {
+                            notice.textContent = '必須のお客様情報(*)を全て入力してください。';
+                        }
+                    }
+                }
+            }
+            
+            // --- vvv DOM更新ハック vvv ---
+            saveButton.disabled = true; 
+            saveButton.classList.add('bg-indigo-300');
+            saveButton.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+
+            if (isReady) {
+                saveButton.disabled = false;
+                saveButton.classList.remove('bg-indigo-300');
+                saveButton.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+            }
+            // --- ^^^ DOM更新ハック ^^^ ---
+        }
+
+        function clearSignature() {
+            if (signaturePad) signaturePad.clear();
+        }
+
+        function setupZipCodeListener() {
+            const zipInput = document.getElementById('shaken-zip');
+            if (zipInput) {
+                zipInput.addEventListener('input', lookupAddress);
+            }
+        }
+
+        async function lookupAddress() {
+            const zipInput = document.getElementById('shaken-zip');
+            const addressInput = document.getElementById('shaken-address');
+            const statusEl = document.getElementById('address-status');
+            let zipCode = zipInput.value.replace(/[^0-9]/g, '');
+            zipInput.value = zipCode;
+            if (zipCode.length === 7) {
+                statusEl.textContent = '住所を検索中...';
+                try {
+                    const response = await fetchJsonp(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zipCode}`);
+                    const data = await response.json();
+                    if (data.status === 200 && data.results) {
+                        const address = data.results[0].address1 + data.results[0].address2 + data.results[0].address3;
+                        addressInput.value = address;
+                        statusEl.textContent = '住所が自動入力されました。';
+                        updateSaveButtonState();
+                    } else {
+                        statusEl.textContent = '該当する住所が見つかりませんでした。';
+                        updateSaveButtonState();
+                    }
+                } catch (error) {
+                    console.error('Zip code lookup error:', error);
+                    statusEl.textContent = '住所の検索に失敗しました。';
+                    updateSaveButtonState();
+                }
+            } else {
+                statusEl.textContent = '';
+                updateSaveButtonState();
+            }
+        }
+
+        async function saveSignature() {
+            if (GAS_WEB_APP_URL.includes('（ここに、GASを')) {
+                alert('エラー：Google Apps ScriptのURLが設定されていません。\nHTMLファイル内の「GAS_WEB_APP_URL」を実際のURLに書き換えてください。');
+                return;
+            }
+            if (signaturePad.isEmpty()) {
+                alert("署名が入力されていません。");
+                return;
+            }
+
+            let formData = {
+                formType: currentForm,
+                signature: signaturePad.toDataURL('image/png'),
+                timestamp: new Date().toLocaleString('ja-JP'),
+                tenpo: document.getElementById('common-tenpo').value,
+                staff: document.getElementById('common-staff').value,
+                torokuBango: document.getElementById('common-toroku-bango').value,
+                shataiBango: document.getElementById('common-shatai-bango').value,
+            };
+            let yakkanElementId = (currentForm === 'form-houchi') ? 'houchi-yakkan' : 'shaken-yakkan';
+            let yakkanElement = document.getElementById(yakkanElementId);
+            formData.yakkanText = yakkanElement ? yakkanElement.innerText : '約款取得エラー';
+
+            if (currentForm === 'form-houchi') {
+                const vehicleTypeEl = document.querySelector('input[name="houchi-vehicle-type"]:checked');
+                formData.vehicleType = vehicleTypeEl ? vehicleTypeEl.value : '';
+                formData.delegation = document.getElementById('houchi-delegation').checked;
+                formData.certificateType1 = document.getElementById('houchi-certificate-1').checked;
+                formData.certificateType2 = document.getElementById('houchi-certificate-2').checked;
+                formData.vehicleTypeText = vehicleTypeEl ? vehicleTypeEl.parentElement.innerText.trim() : '未選択';
+                const delegationLabel = document.getElementById('houchi-delegation').parentElement;
+                formData.delegationText = formData.delegation ? delegationLabel.innerText.trim() : '未承諾';
+                const certificate1Label = document.getElementById('houchi-certificate-1').parentElement;
+                formData.certificate1Text = formData.certificateType1 ? certificate1Label.innerText.trim() : '未承諾';
+                const certificate2Label = document.getElementById('houchi-certificate-2').parentElement;
+                formData.certificate2Text = formData.certificateType2 ? certificate2Label.innerText.trim() : '未承諾';
+            } else if (currentForm === 'form-shaken') {
+                formData.ownerName = document.getElementById('shaken-owner-name').value;
+                formData.tel = document.getElementById('shaken-tel').value;
+                formData.zip = document.getElementById('shaken-zip').value;
+                formData.address = document.getElementById('shaken-address').value;
+                let recipient = document.getElementById('shaken-recipient-name').value;
+                formData.recipientName = recipient || formData.ownerName;
+            }
+
+            const overlay = document.getElementById('saving-overlay');
+            overlay.classList.remove('hidden');
+
+            try {
+                // --- ▼▼▼ 【！】CORS対策 ▼▼▼ ---
+                const response = await fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'cors', // 「他人」と通信します、と宣言
+                    cache: 'no-cache',
+                    headers: { 
+                        'Content-Type': 'text/plain;charset=utf-8' 
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                // 'cors'モードではレスポンスを読めるので、
+                // 本当に成功したか（response.ok）をチェックする
+                if (!response.ok) {
+                    // もしサーバーがエラーを返したら
+                    throw new Error(`サーバーエラー: ${response.status} ${response.statusText}`);
+                }
+                // --- ▲▲▲ 【！】CORS対策 ▲▲▲ ---
+
+                overlay.classList.add('hidden');
+                // alert('保存リクエストを送信しました。\n数秒後、Googleドライブとスプレッドシートをご確認ください。');
+                
+                const completedButton = (currentForm === 'form-houchi') ? houchiButton : shakenButton;
+                completedButton.classList.add('completed');
+                completedButton.querySelector('.button-text').innerHTML = `✓ 完了`;
+                completedButton.disabled = true;
+                
+                hideCurrentForm();
+                
+                document.getElementById('reset-all-button').classList.remove('hidden');
+
+            } catch (error) {
+                overlay.classList.add('hidden');
+                console.error('Error:', error);
+                // --- ▼▼▼ エラー表示を、ブロックされない形に変更 ▼▼▼ ---
+                // alert()はブロックされるので、コンソールにエラーを出す
+                console.error(`保存中に通信エラーが発生しました。\n\n詳細: ${error.message}`);
+                // ユーザーには、UIでエラーを通知する（もし必要なら）
+                // (例： document.getElementById('error-message-area').innerText = '保存に失敗しました。';)
+                // --- ▲▲▲ エラー表示を、ブロックされない形に変更 ▲▲▲ ---
+            }
+
+        const commonInputs = [
+            document.getElementById('common-tenpo'),
+            document.getElementById('common-staff'),
+            document.getElementById('common-toroku-bango'),
+            document.getElementById('common-shatai-bango')
+        ];
+        
+        function checkCommonInputs() {
+            const allStaffFilled = commonInputs.every(input => input.value.trim() !== '');
+            const shakenIsComplete = shakenButton.classList.contains('completed');
+            const houchiIsComplete = houchiButton.classList.contains('completed');
+            const houchiTextSpan = houchiButton.querySelector('.button-text');
+
+            if (shakenIsComplete) {
+                shakenButton.disabled = true; 
+            } else {
+                shakenButton.disabled = !allStaffFilled; 
+            }
+
+            if (houchiIsComplete) {
+                houchiButton.disabled = true; 
+            } else if (allStaffFilled && shakenIsComplete) {
+                houchiButton.disabled = false;
+                houchiTextSpan.innerHTML = houchiButtonText;
+                houchiButton.classList.remove('waiting');
+            } else {
+                houchiButton.disabled = true;
+                if (allStaffFilled && !shakenIsComplete) {
+                    houchiTextSpan.innerHTML = "（↑車検証同意書を先に完了してください）";
+                    houchiButton.classList.add('waiting'); 
+                } else {
+                    houchiTextSpan.innerHTML = houchiButtonText;
+                    houchiButton.classList.remove('waiting');
+                }
+            }
+        }
+
+        commonInputs.forEach(input => {
+            input.addEventListener('input', checkCommonInputs);
+        });
+        
+        // --- ▼▼▼ 【！】「最初からやり直す」バグ修正 ▼▼▼ ---
+        function resetAll() {
+            // "confirm" はGoogleサイト/iframeでブロックされるため削除
+            
+            commonInputs.forEach(input => input.value = '');
+            document.getElementById('common-tenpo').selectedIndex = 0;
+            if(currentForm) {
+                const form = document.getElementById(currentForm);
+                if(form) form.reset();
+                hideCurrentForm();
+            }
+            
+            houchiButton.classList.remove('completed', 'waiting');
+            shakenButton.classList.remove('completed', 'waiting');
+            
+            document.getElementById('reset-all-button').classList.add('hidden');
+            
+            checkCommonInputs();
+        }
+        // --- ▲▲▲ 【！】「最初からやり直す」バGOTO 3
+// 
+// 3
+// 
+// 修正 ▲▲▲ ---
+
+        // 初期チェック
+        checkCommonInputs();
+    </script>
+</body>
+</html>
