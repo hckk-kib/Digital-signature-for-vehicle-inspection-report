@@ -242,7 +242,7 @@
 
     <script>
         // --- ▼▼▼ 【！】あなたのGASのURLに差し替えてください ▼▼▼ ---
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/（ここに、あなたのGASのURLを貼り付け）/exec'; 
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzshaGx2to9Yu8_vRJ3Qg08RDwuy5HEMTMknEiUlzxpyvgzJP8rOKPLD-lfszrKxT7P/exec'; 
         // --- ▲▲▲ 【！】あなたのGASのURLに差し替えてください ▲▲▲ ---
 
         let currentForm = null;
@@ -531,12 +531,24 @@
             try {
                 const response = await fetch(GAS_WEB_APP_URL, {
                     method: 'POST',
-                    mode: 'no-cors', 
+                    // --- ▼▼▼ 【！】CORS対策 ▼▼▼ ---
+                    mode: 'cors', // 「他人」と通信します、と宣言
+                    // redirect は不要
+                    // --- ▲▲▲ 【！】CORS対策 ▲▲▲ ---
                     cache: 'no-cache',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(formData),
-                    redirect: 'follow'
+                    headers: { 
+                        'Content-Type': 'text/plain;charset=utf-8' 
+                    },
+                    body: JSON.stringify(formData)
                 });
+
+                // 'cors'モードではレスポンスを読めるので、
+                // 本当に成功したか（response.ok）をチェックする
+                if (!response.ok) {
+                    // もしサーバーがエラーを返したら
+                    throw new Error(`サーバーエラー: ${response.status} ${response.statusText}`);
+                }
+
                 overlay.classList.add('hidden');
                 // alert('保存リクエストを送信しました。\n数秒後、Googleドライブとスプレッドシートをご確認ください。');
                 
