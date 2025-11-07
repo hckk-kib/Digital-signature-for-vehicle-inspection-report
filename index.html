@@ -8,6 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/1.5.3/signature_pad.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fetch-jsonp@1.1.3/build/fetch-jsonp.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1/dist/jsQR.min.js"></script>
+    
     <style>
         /* (他のスタイルは変更ありません) */
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
@@ -16,14 +17,13 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #555; }
         .signature-pad-container { border: 2px dashed #ccc; border-radius: 0.5rem; position: relative; }
         
-        /* ▼▼▼ 【！】ペンずれ対策 ▼▼▼ */
+        /* ペンずれ対策 */
         canvas {
             width: 100%;
             height: 200px;
             display: block;
-            touch-action: none; /* スマホやタブレットでの不要なスクロールを禁止 */
+            touch-action: none; 
         }
-        /* ▲▲▲ 【！】ペンずれ対策 ▲▲▲ */
 
         .saving-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 9999; }
         .spinner { border: 8px solid #f3f3f3; border-top: 8px solid #3498db; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; }
@@ -31,7 +31,7 @@
         .completed { background-color: #16a34a !important; color: white !important; cursor: not-allowed !important; }
         .waiting { background-color: #d1d5db !important; cursor: not-allowed !important; }
         
-        /* ▼▼▼ 【！】QRモーダル用スタイル ▼▼▼ */
+        /* QRモーダル用スタイル */
         .qr-modal {
             position: fixed;
             top: 0;
@@ -52,17 +52,27 @@
             border: 4px solid #fff;
             border-radius: 8px;
         }
-        #qr-cancel-button {
-            margin-top: 20px;
-            padding: 10px 20px;
+        /* ▼▼▼ 【！】QRコードのスキャン対象を指示 ▼▼▼ */
+        #qr-message {
+            margin-top: 15px;
+            padding: 10px;
             font-size: 1.1em;
             font-weight: bold;
             color: #333;
             background-color: #fff;
             border-radius: 8px;
+            text-align: center;
+        }
+        #qr-cancel-button {
+            margin-top: 15px;
+            padding: 10px 20px;
+            font-size: 1.1em;
+            color: #eee;
+            background-color: #ef4444; /* red-500 */
+            border-radius: 8px;
             cursor: pointer;
         }
-        /* ▲▲▲ 【！】QRモーダル用スタイル ▲▲▲ */
+        /* ▲▲▲ 【！】QRコードのスキャン対象を指示 ▲▲▲ */
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -85,16 +95,17 @@
                         車検証QRコード読み取り
                     </button>
                 </div>
+                
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                         <div>
                             <label for="common-tenpo" class="block text-gray-700 font-semibold mb-2">店舗名</label>
                             <select id="common-tenpo" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
                                 <option value="">選択してください</option>
                                 <option value="麻生店">麻生店</option>
-                                <option value="青葉店">青葉店</option>
-                                <option value="川崎多摩店">川崎多摩店</option>
                                 <option value="美しが丘店">美しが丘店</option>
                                 <option value="日吉店">日吉店</option>
+                                <option value="青葉店">青葉店</option>
+                                <option value="川崎多摩店">川崎多摩店</option>
                                 <option value="都筑桜並木店">都筑桜並木店</option>
                                 <option value="川崎幸店">川崎幸店</option>
                                 <option value="新百合ヶ丘店">新百合ヶ丘店</option>
@@ -162,7 +173,7 @@
 必要な確認を行う場合には、以下の同意書が必要となります。
                                                                     警 察 庁
                                                                     国 土 交 通 省
-２．継続検査（車検）の電磁的方法による申請手続きについて
+２．継続検査（車検）の電磁の方法による申請手続きについて
 平成２９年４月より、継続検査（車検）に必要な書類の作成や申請手続きを電磁的方法により行うことが可能となりましたが、電磁的方法により
 行う場合は、法令の規定により、事前にお客様（使用者）の承諾を頂くことが必要となっています。（法令の規定：道路運送車両法第９４条の５第
 ２項、同施行令第１０条及び自動車損害賠償保障法第９条第２項、同施行令第１条をいう。）
@@ -285,6 +296,11 @@
     
     <div id="qr-modal" class="hidden qr-modal">
         <video id="qr-video" playsinline></video>
+        <div id="qr-message">
+            車検証記録事項の「二次元コード2」
+            <br>（登録番号・車台番号）
+            <br>をスキャンしてください
+        </div>
         <button id="qr-cancel-button">キャンセル</button>
     </div>
     <script>
@@ -656,7 +672,7 @@
             input.addEventListener('input', checkCommonInputs);
         });
         
-        // --- ▼▼▼ 【２】「最初からやり直す」バグ修正 ▼▼▼ ---
+        // --- ▼▼▼ 【！】「最初からやり直す」バグ修正 ▼▼▼ ---
         function resetAll() {
             // "confirm" はブロックされるため削除
             
@@ -677,9 +693,9 @@
             
             checkCommonInputs();
         }
-        // --- ▲▲▲ 【２】「最初からやり直す」バグ修正 ▲▲▲ ---
+        // --- ▲▲▲ 【！】「最初からやり直す」バグ修正 ▲▲▲ ---
 
-        // --- ▼▼▼ 【４】QRコード読み取り関数 ▼▼▼ ---
+        // --- ▼▼▼ 【新機能】QRコード読み取り関数 ▼▼▼ ---
         function startQrScan() {
             qrModal.classList.remove('hidden');
             // 背面カメラ（environment）を要求
@@ -722,7 +738,7 @@
                 if (code) {
                     // --- QRコード発見！ ---
                     stopQrScan();
-                    parseQrData(code.data);
+                    parseQrData(code.data); // 解析処理へ
                     return; // ループ停止
                 }
             }
@@ -732,21 +748,29 @@
             }
         }
         
+        // --- ▼▼▼ 【！】「二次元コード2」を解析する新ロジック ▼▼▼ ---
         function parseQrData(data) {
-            // 車検証QRの形式: "1/[登録番号],[車台番号],..." or "3/[登録番号],[車台番号]"
             console.log("QR Data:", data);
             try {
-                // 仕様書に基づき、 "/" で区切る
-                const parts = data.split('/'); 
-                if (parts.length < 2) throw new Error("無効な形式です。");
+                // 仕様書に基づき、 "/" または "," で区切られているかチェック
+                let values;
+                if (data.includes('/')) {
+                    // "1/..." や "3/..." の形式（軽自動車など）
+                    values = data.split('/')[1].split(',');
+                } else if (data.includes(',')) {
+                    // "二次元コード2" の形式（登録番号,車台番号,...）
+                    values = data.split(',');
+                } else {
+                    // "二次元コード1" (車両IDのみ) などをスキャンした場合
+                    throw new Error("「二次元コード2」（登録番号・車台番号）をスキャンしてください。");
+                }
 
-                const values = parts[1].split(','); // メインデータを "," で分割
-                
                 // 仕様書に基づき、1番目(index 0)が登録番号、2番目(index 1)が車台番号
                 const torokuBango = values[0];
                 const shataiBango = values[1];
 
-                if (torokuBango && shataiBango) {
+                // 車台番号にハイフンが含まれているか（簡易チェック）
+                if (torokuBango && shataiBango && shataiBango.includes('-')) {
                     document.getElementById('common-toroku-bango').value = torokuBango;
                     document.getElementById('common-shatai-bango').value = shataiBango;
                     
@@ -757,14 +781,17 @@
                 }
             } catch (err) {
                 console.error("QR Parse Error:", err, data);
-                alert("車検証のQRコード形式ではないか、読み取りに失敗しました。");
+                alert("エラー: " + err.message);
+                // 失敗したら、もう一度スキャンを促す
+                startQrScan();
             }
         }
+        // --- ▲▲▲ 【！】「二次元コード2」を解析する新ロジック ▲▲▲ ---
 
         // QRボタンのイベントリスナー
         qrScanButton.addEventListener('click', startQrScan);
         qrCancelButton.addEventListener('click', stopQrScan);
-        // --- ▲▲▲ 【４】QRコード読み取り関数 ▲▲▲ ---
+        // --- ▲▲▲ 【！】QRコード読み取り関数 ▲▲▲ ---
 
         // 初期チェック
         checkCommonInputs();
