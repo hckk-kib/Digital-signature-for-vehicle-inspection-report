@@ -7,8 +7,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/1.5.3/signature_pad.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fetch-jsonp@1.1.3/build/fetch-jsonp.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1/dist/jsQR.min.js"></script>
     <style>
-        /* カスタムスクロールバー */
+        /* (他のスタイルは変更ありません) */
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
@@ -29,6 +30,39 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .completed { background-color: #16a34a !important; color: white !important; cursor: not-allowed !important; }
         .waiting { background-color: #d1d5db !important; cursor: not-allowed !important; }
+        
+        /* ▼▼▼ 【！】QRモーダル用スタイル ▼▼▼ */
+        .qr-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 10000;
+        }
+        #qr-video {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            border: 4px solid #fff;
+            border-radius: 8px;
+        }
+        #qr-cancel-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #333;
+            background-color: #fff;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        /* ▲▲▲ 【！】QRモーダル用スタイル ▲▲▲ */
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -41,16 +75,26 @@
         <div id="common-staff-inputs" class="bg-white shadow-md rounded-lg p-6 mb-8">
             <fieldset class="p-4 rounded-lg">
                 <legend class="text-xl font-semibold text-gray-700 px-2">1. スタッフ入力欄</legend>
+                
+                <div class="my-4">
+                    <button type="button" id="qr-scan-button" class="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 ease-in-out">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6-13v1m0 11v1m-6-1V4m0 11v1m-2-11h2m0 11h2m-6-13h2m6 0h2m-6 13h2m6 0h2M4 12H2m13 6V4m-2 11V4m-6 11V4m-2 11V4M4 12h2m11 0h2" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10 12l-2 2 2 2m4-4l2 2-2 2" />
+                        </svg>
+                        車検証QRコード読み取り
+                    </button>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                         <div>
                             <label for="common-tenpo" class="block text-gray-700 font-semibold mb-2">店舗名</label>
                             <select id="common-tenpo" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
                                 <option value="">選択してください</option>
                                 <option value="麻生店">麻生店</option>
-                                <option value="美しが丘店">美しが丘店</option>
-                                <option value="日吉店">日吉店</option>
                                 <option value="青葉店">青葉店</option>
                                 <option value="川崎多摩店">川崎多摩店</option>
+                                <option value="美しが丘店">美しが丘店</option>
+                                <option value="日吉店">日吉店</option>
                                 <option value="都筑桜並木店">都筑桜並木店</option>
                                 <option value="川崎幸店">川崎幸店</option>
                                 <option value="新百合ヶ丘店">新百合ヶ丘店</option>
@@ -238,8 +282,11 @@
             <p class="text-white text-lg mt-4 font-semibold">PDFを作成し、Googleドライブに保存しています...</p>
         </div>
     </div>
-
-
+    
+    <div id="qr-modal" class="hidden qr-modal">
+        <video id="qr-video" playsinline></video>
+        <button id="qr-cancel-button">キャンセル</button>
+    </div>
     <script>
         // --- ▼▼▼ 【！】あなたのGASのURLに差し替えてください ▼▼▼ ---
         const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyZaNVXb924RkjDYWnR7opG7O2eoyuMsdeUt9-PmzC9xpgN4TDdSfwGxWpIOctUrZy6/exec'; 
@@ -257,6 +304,14 @@
         const formHouchi = document.getElementById('form-houchi');
         const formShaken = document.getElementById('form-shaken'); // <-- バグ修正！
         
+        // --- ▼▼▼ 【！】QRコード用 Element ▼▼▼ ---
+        const qrModal = document.getElementById('qr-modal');
+        const qrVideo = document.getElementById('qr-video');
+        const qrScanButton = document.getElementById('qr-scan-button');
+        const qrCancelButton = document.getElementById('qr-cancel-button');
+        let videoStream = null; // カメラのストリームを保持する
+        // --- ▲▲▲ 【！】QRコード用 Element ▲▲▲ ---
+
         // --- 共通の署名セクションHTML ---
         const signatureHTML = `
             <h3 class="text-lg font-semibold text-gray-800 mb-2">電子署名</h3>
@@ -529,21 +584,18 @@
             overlay.classList.remove('hidden');
 
             try {
-                // --- ▼▼▼ 【！】CORS対策（mode: 'cors'）▼▼▼ ---
+                // --- ▼▼▼ 【！】'no-cors' に戻す（Googleサイト運用）▼▼▼ ---
                 const response = await fetch(GAS_WEB_APP_URL, {
                     method: 'POST',
-                    mode: 'cors', // GitHub移行のため 'cors' が必要
+                    mode: 'no-cors', // Googleサイト内は 'no-cors'
                     cache: 'no-cache',
                     headers: { 
                         'Content-Type': 'text/plain;charset=utf-8' 
                     },
-                    body: JSON.stringify(formData)
+                    body: JSON.stringify(formData),
+                    redirect: 'follow'
                 });
-
-                if (!response.ok) {
-                    throw new Error(`サーバーエラー: ${response.status} ${response.statusText}`);
-                }
-                // --- ▲▲▲ 【！】CORS対策 ▲▲▲ ---
+                // --- ▲▲▲ 【！】'no-cors' に戻す ▲▲▲ ---
 
                 overlay.classList.add('hidden');
                 // alert('保存リクエストを送信しました。\n数秒後、Googleドライブとスプレッドシートをご確認ください。');
@@ -604,7 +656,7 @@
             input.addEventListener('input', checkCommonInputs);
         });
         
-        // --- ▼▼▼ 【！】「最初からやり直す」バグ修正 ▼▼▼ ---
+        // --- ▼▼▼ 【２】「最初からやり直す」バグ修正 ▼▼▼ ---
         function resetAll() {
             // "confirm" はブロックされるため削除
             
@@ -620,10 +672,99 @@
             shakenButton.classList.remove('completed', 'waiting');
             
             document.getElementById('reset-all-button').classList.add('hidden');
+
+            stopQrScan(); // <-- QRカメラが起動していたら停止する
             
             checkCommonInputs();
         }
-        // --- ▲▲▲ 【！】「最初からやり直す」バグ修正 ▲▲▲ ---
+        // --- ▲▲▲ 【２】「最初からやり直す」バグ修正 ▲▲▲ ---
+
+        // --- ▼▼▼ 【４】QRコード読み取り関数 ▼▼▼ ---
+        function startQrScan() {
+            qrModal.classList.remove('hidden');
+            // 背面カメラ（environment）を要求
+            navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "environment" }
+            }).then(function(stream) {
+                videoStream = stream;
+                qrVideo.srcObject = stream;
+                qrVideo.play();
+                requestAnimationFrame(tick); // スキャンループ開始
+            }).catch(err => {
+                console.error("Camera Error:", err);
+                alert("カメラの起動に失敗しました。ブラウザのカメラ権限を許可してください。（Googleサイトはカメラをブロックします）");
+                stopQrScan();
+            });
+        }
+
+        function stopQrScan() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop()); // カメラを停止
+                videoStream = null;
+            }
+            qrModal.classList.add('hidden'); // モーダルを閉じる
+        }
+
+        function tick() {
+            if (videoStream && qrVideo.readyState === qrVideo.HAVE_ENOUGH_DATA) {
+                // videoの映像を一時的にcanvasに描画してjsQRで解析
+                const canvas = document.createElement('canvas');
+                canvas.width = qrVideo.videoWidth;
+                canvas.height = qrVideo.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(qrVideo, 0, 0, canvas.width, canvas.height);
+                
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert", // 通常のQRコードのみスキャン
+                });
+
+                if (code) {
+                    // --- QRコード発見！ ---
+                    stopQrScan();
+                    parseQrData(code.data);
+                    return; // ループ停止
+                }
+            }
+            // まだモーダルが開いていれば（＝videoStreamがnullでなければ）、次のフレームをスキャン
+            if (videoStream) {
+                requestAnimationFrame(tick);
+            }
+        }
+        
+        function parseQrData(data) {
+            // 車検証QRの形式: "1/[登録番号],[車台番号],..." or "3/[登録番号],[車台番号]"
+            console.log("QR Data:", data);
+            try {
+                // 仕様書に基づき、 "/" で区切る
+                const parts = data.split('/'); 
+                if (parts.length < 2) throw new Error("無効な形式です。");
+
+                const values = parts[1].split(','); // メインデータを "," で分割
+                
+                // 仕様書に基づき、1番目(index 0)が登録番号、2番目(index 1)が車台番号
+                const torokuBango = values[0];
+                const shataiBango = values[1];
+
+                if (torokuBango && shataiBango) {
+                    document.getElementById('common-toroku-bango').value = torokuBango;
+                    document.getElementById('common-shatai-bango').value = shataiBango;
+                    
+                    // 必須項目が埋まったので、同意書ボタンを有効化する
+                    checkCommonInputs();
+                } else {
+                    throw new Error("登録番号または車台番号が読み取れませんでした。");
+                }
+            } catch (err) {
+                console.error("QR Parse Error:", err, data);
+                alert("車検証のQRコード形式ではないか、読み取りに失敗しました。");
+            }
+        }
+
+        // QRボタンのイベントリスナー
+        qrScanButton.addEventListener('click', startQrScan);
+        qrCancelButton.addEventListener('click', stopQrScan);
+        // --- ▲▲▲ 【４】QRコード読み取り関数 ▲▲▲ ---
 
         // 初期チェック
         checkCommonInputs();
