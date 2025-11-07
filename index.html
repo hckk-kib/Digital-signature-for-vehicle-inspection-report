@@ -104,8 +104,6 @@
                                 <option value="麻生店">麻生店</option>
                                 <option value="美しが丘店">美しが丘店</option>
                                 <option value="日吉店">日吉店</option>
-                                <option value="青葉店">青葉店</option>
-                                <option value="川崎多摩店">川崎多摩店</option>
                                 <option value="都筑桜並木店">都筑桜並木店</option>
                                 <option value="川崎幸店">川崎幸店</option>
                                 <option value="新百合ヶ丘店">新百合ヶ丘店</option>
@@ -119,7 +117,8 @@
                                 <option value="U-Select鶴見">U-Select鶴見</option>
                                 <option value="U-Select川崎北">U-Select川崎北</option>
                                 <option value="U-Select横浜青葉">U-Select横浜青葉</option>
-                                
+                                <option value="青葉店">青葉店</option>
+                                <option value="川崎多摩店">川崎多摩店</option>
                             </select>
                         </div>
                         <div>
@@ -173,7 +172,7 @@
 必要な確認を行う場合には、以下の同意書が必要となります。
                                                                     警 察 庁
                                                                     国 土 交 通 省
-２．継続検査（車検）の電磁の方法による申請手続きについて
+２．継続検査（車検）の電磁的方法による申請手続きについて
 平成２９年４月より、継続検査（車検）に必要な書類の作成や申請手続きを電磁的方法により行うことが可能となりましたが、電磁的方法により
 行う場合は、法令の規定により、事前にお客様（使用者）の承諾を頂くことが必要となっています。（法令の規定：道路運送車両法第９４条の５第
 ２項、同施行令第１０条及び自動車損害賠償保障法第９条第２項、同施行令第１条をいう。）
@@ -305,7 +304,7 @@
     </div>
     <script>
         // --- ▼▼▼ 【！】あなたのGASのURLに差し替えてください ▼▼▼ ---
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyZaNVXb924RkjDYWnR7opG7O2eoyuMsdeUt9-PmzC9xpgN4TDdSfwGxWpIOctUrZy6/exec'; 
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/（ここに、あなたのGASのURLを貼り付け）/exec'; 
         // --- ▲▲▲ 【！】あなたのGASのURLに差し替えてください ▲▲▲ ---
 
         let currentForm = null;
@@ -695,7 +694,7 @@
         }
         // --- ▲▲▲ 【！】「最初からやり直す」バグ修正 ▲▲▲ ---
 
-        // --- ▼▼▼ 【新機能】QRコード読み取り関数 ▼▼▼ ---
+        // --- ▼▼▼ 【！】QRコード読み取り関数 ▼▼▼ ---
         function startQrScan() {
             qrModal.classList.remove('hidden');
             // 背面カメラ（environment）を要求
@@ -737,9 +736,12 @@
 
                 if (code) {
                     // --- QRコード発見！ ---
-                    stopQrScan();
-                    parseQrData(code.data); // 解析処理へ
-                    return; // ループ停止
+                    // parseQrData に渡す前に、それが「二次元コード2」か簡易チェックする
+                    if (parseQrData(code.data)) {
+                        stopQrScan(); // 成功したのでカメラ停止
+                        return; // ループ停止
+                    }
+                    // "二次元コード2" 以外は無視してスキャン続行
                 }
             }
             // まだモーダルが開いていれば（＝videoStreamがnullでなければ）、次のフレームをスキャン
@@ -750,7 +752,7 @@
         
         // --- ▼▼▼ 【！】「二次元コード2」を解析する新ロジック ▼▼▼ ---
         function parseQrData(data) {
-            console.log("QR Data:", data);
+            // この関数は、解析に「成功したら true」を、「失敗したら false」を返す
             try {
                 // 仕様書に基づき、 "/" または "," で区切られているかチェック
                 let values;
@@ -762,7 +764,7 @@
                     values = data.split(',');
                 } else {
                     // "二次元コード1" (車両IDのみ) などをスキャンした場合
-                    throw new Error("「二次元コード2」（登録番号・車台番号）をスキャンしてください。");
+                    return false; // エラーではなく、無視してスキャン続行
                 }
 
                 // 仕様書に基づき、1番目(index 0)が登録番号、2番目(index 1)が車台番号
@@ -776,14 +778,13 @@
                     
                     // 必須項目が埋まったので、同意書ボタンを有効化する
                     checkCommonInputs();
+                    return true; // 成功！
                 } else {
-                    throw new Error("登録番号または車台番号が読み取れませんでした。");
+                    return false; // 形式が違う（二次元コード3など）ので無視
                 }
             } catch (err) {
-                console.error("QR Parse Error:", err, data);
-                alert("エラー: " + err.message);
-                // 失敗したら、もう一度スキャンを促す
-                startQrScan();
+                console.error("QR Parse Error (Ignoring):", err, data);
+                return false; // 解析エラーは無視してスキャン続行
             }
         }
         // --- ▲▲▲ 【！】「二次元コード2」を解析する新ロジック ▲▲▲ ---
