@@ -682,10 +682,13 @@
             commonInputs.forEach(input => input.value = '');
             document.getElementById('common-tenpo').selectedIndex = 0;
             if(currentForm) {
-                const form = document.getElementById(currentForm);
-                if(form) form.reset();
                 hideCurrentForm();
             }
+            // 両方のフォームをリセット
+            const formHouchi = document.getElementById('form-houchi');
+            const formShaken = document.getElementById('form-shaken');
+            if(formHouchi) formHouchi.reset();
+            if(formShaken) formShaken.reset();
             
             houchiButton.classList.remove('completed', 'waiting');
             shakenButton.classList.remove('completed', 'waiting');
